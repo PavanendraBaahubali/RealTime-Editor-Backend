@@ -37,17 +37,6 @@ const startServer = async () => {
 
             socket.on('content-update', async ({ roomId, content }) => {
                 try {
-                    // const roomData = await Room.findOne({ _id: new mongoose.Types.ObjectId(roomId) });
-            
-                    // if (!roomData) {
-                    //     console.log('Room not found:', roomId);
-                    //     return;
-                    // }
-            
-                    // roomData.content = content;
-                    // await roomData.save();
-            
-                    // const updatedContent = roomData.content;
 
                     console.log('im in event content-update')
                     io.to(roomId).emit('updated-content', content);
@@ -62,31 +51,40 @@ const startServer = async () => {
 
             socket.on('join-room', async ({ userId, roomId, userName }) => {
                 if (!mongoose.Types.ObjectId.isValid(roomId)) {
-                    socket.emit('error', 'Invalid room Id'); 
+                    socket.emit('error', 'Invalid room Id');
                     return;
                 }
-
+            
                 const roomData = await Room.findOne({ _id: new mongoose.Types.ObjectId(roomId) });
             
                 if (!roomData) {
-                    socket.emit('error', 'Room was not found'); 
-                    console.log('room is not found');
+                    socket.emit('error', 'Room was not found');
+                    console.log('Room not found');
                     return;
                 }
-                
+            
                 socket.join(roomId);
-                
-                const isUserExist = roomData.connectedUsers.some((user) => user.userId === userId)
-
+            
+                // Ensure the user is not already in the list of connected users
+                const isUserExist = roomData.connectedUsers.some(
+                    (user) => user.userId.toString() === userId
+                );
+            
                 if (!isUserExist) {
                     roomData.connectedUsers.push({ userId, userName });
                     await roomData.save();
                 }
-                
             
-                console.log('Emitting user-joined event');
-                io.to(roomId).emit('user-joined', roomData);
+                // Filter out any duplicate users before emitting the event
+                const uniqueConnectedUsers = roomData.connectedUsers.filter(
+                    (user, index, self) =>
+                        index === self.findIndex((u) => u.userId.toString() === user.userId.toString())
+                );
+            
+                // Emit the updated list of unique users to all clients in the room
+                io.to(roomId).emit('user-joined', { ...roomData.toObject(), connectedUsers: uniqueConnectedUsers });
             });
+            
 
 
             socket.on('create-room', async ({userId, roomName, userName}) => {
@@ -96,6 +94,9 @@ const startServer = async () => {
                     creatorId : userId,
                     connectedUsers : [],
                     content : '',
+                    version : 0,
+                    lastModified : Date.now(),
+                    lastModifiedBy : '',
                 })
 
 

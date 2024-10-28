@@ -6,6 +6,9 @@ const roomSchema = new mongoose.Schema({
     creatorId : {type : String, require : true},
     connectedUsers : {type : Array, require : true},
     content : {type : String, require : true},
+    version : {type : Number, default : 0},
+    lastModified: { type: Date, default: Date.now() },
+    lastModifiedBy: { type: String, default : '' },
 })
 
 const Room = mongoose.model('room', roomSchema);
