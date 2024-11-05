@@ -21,38 +21,48 @@ const getRoomDetails = async (req, res) => {
 }
 const saveRoomContent = async (req, res) => {
     try {
-        const { content, version } = req.body;
-        const {roomId} = req.params;
+        const { content, userId } = req.body;
+        const { roomId } = req.params;
 
-        
-        const updatedRoom = await Room.findOne({ _id : new mongoose.Types.ObjectId(roomId)});
-
+        const updatedRoom = await Room.findOne({ _id: new mongoose.Types.ObjectId(roomId) });
         if (!updatedRoom) {
-            console.log(updatedRoom)
+            console.log(updatedRoom);
             return res.status(404).json({ message: 'Room not found' });
         }
 
-        console.log('updated', updatedRoom.version, 'version from UI', version);
+        updatedRoom.content = content;
+        await updatedRoom.save();
 
-        if (updatedRoom.version !== version){
-            return res.status(409).json({ status: 'CONFLICT', message: 'Content was updated by another user.' });
-        }
-
-       // Update content and increment version
-       updatedRoom.content = content;
-       updatedRoom.version += 1; // Increment version
-       await updatedRoom.save();
-
-       res.json({ status: 'SUCCESS', version: updatedRoom.version });
-       return 
-
-    } catch (err) {
-        console.error('Error updating room content:', err);
-        res.status(500).json({ status: 'ERROR', message: 'Failed to save content.' });
-        return
+        res.json({ status: 'SUCCESS', userId });
+        return 
+    } catch (error) {
+        console.error("Error saving room content:", error);
+        res.status(500).json({ message: 'Internal server error', error });
+        return 
     }
 };
 
 
 
-module.exports = {getRoomDetails, saveRoomContent};
+
+const saveCanvasData = async (req, res) => {
+    const {roomId, canvasData} = req.body;
+    try{
+        const roomData = await Room.findOne({_id :  new mongoose.Types.ObjectId(roomId)});
+
+        roomData.canvasData = new Binary(canvasData)
+        await roomData.save();
+        res.status(200).json({message : 'updated canvas', roomData});
+        return 
+    }
+    catch(err){
+        console.log(err.message);
+        res.status(500).json({message : err})
+        return 
+    }
+
+}
+
+
+
+module.exports = {getRoomDetails, saveRoomContent, saveCanvasData};
